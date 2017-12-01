@@ -5,11 +5,6 @@ LOGFILE=$PATH_TO_FILE/acs-server-setup.txt
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 
 
-if [ ! -f $LOGFILE ];
-then
-    touch $LOGFILE
-fi
-
 
 
 function setUpdateState {
@@ -23,27 +18,27 @@ function doLog {
 }
 
 
+if [ ! -f $LOGFILE ];
+then
+   touch $LOGFILE
+   doLog "Start script"
+else
+   doLog "Restart script"
+fi
 
 
 if [ ! -f $UPDATE_STATE_FILE ];
 then
-    doLog "File does not exists. Create it"
+    doLog "UpdateState file does not exists. Create it"
     touch $UPDATE_STATE_FILE
     setUpdateState 0
-    rm $LOGFILE
 else
     UPDATE_STATE=$(< ${UPDATE_STATE_FILE})
     doLog "File exists. UpdateState= $UPDATE_STATE"
 fi
 
 
-if [ ! -f $LOGFILE ];
-then
-   touch $LOGFILE
-   doLog "Restart script"
-else
-   doLog "Start script"
-fi
+
 
 
 case $UPDATE_STATE in
@@ -84,7 +79,7 @@ case $UPDATE_STATE in
    sleep 5
 
    doLog "Finished apt-get upgrade. Reboot now"
-   setUpdateState 5
+   setUpdateState 2
    reboot
    ;;
 

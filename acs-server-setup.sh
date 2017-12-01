@@ -23,11 +23,7 @@ function doLog {
 }
 
 
-if [ ! -f $LOGFILE ];
-then
-   touch $LOGFILE
-   doLog "Start"
-fi
+
 
 if [ ! -f $UPDATE_STATE_FILE ];
 then
@@ -39,6 +35,16 @@ else
     UPDATE_STATE=$(< ${UPDATE_STATE_FILE})
     doLog "File exists. UpdateState= $UPDATE_STATE"
 fi
+
+
+if [ ! -f $LOGFILE ];
+then
+   touch $LOGFILE
+   doLog "Restart script"
+else
+   doLog "Start script"
+fi
+
 
 case $UPDATE_STATE in
 0)
@@ -77,14 +83,15 @@ case $UPDATE_STATE in
    DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
    sleep 5
 
-   doLog "Finished apt-get update"
-   setUpdateState 2
+   doLog "Finished apt-get upgrade. Reboot now"
+   setUpdateState 5
    reboot
    ;;
 
 2)
-   doLog "UpdateState is 3. Finished"
-   touch $PATH_TO_FILE/UPDATE_STATE_3.txt
+   doLog "UPDATE FINISHED"
+   touch $PATH_TO_FILE/UPDATE_FINISHED
+   crontab -r
    setUpdateState 3
    ;;
 

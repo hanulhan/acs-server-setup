@@ -1,6 +1,9 @@
 #!/bin/bash -eux
 
-LOGFILE=/home/ubuntu/acs-server-setup/acs-server-setup.txt
+PATH_TO_FILE=/home/ubuntu/acs-server-setup
+LOGFILE=$PATH_TO_FILE/acs-server-setup.txt
+UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
+
 
 if [ ! -f $LOGFILE ];
 then
@@ -11,29 +14,29 @@ fi
 
 function setUpdateState {
    UPDATE_STATE=$1
-   echo $UPDATE_STATE > update-state.txt
+   echo $UPDATE_STATE > $UPDATE_STATE_FILE
 }
 
 function doLog {
-   #echo $1
+   echo $1
    echo $1 >> $LOGFILE
 }
 
 
-if [ ! -f /home/ubuntu/acs-server-setup/acs-server-setup.txt ];
+if [ ! -f $LOGFILE ];
 then
-touch /home/ubuntu/acs-server-setup/acs-server-setup.txt
-doLog "Start"
+   touch $LOGFILE
+   doLog "Start"
 fi
 
-if [ ! -f /home/ubuntu/acs-server-setup/update-state.txt ];
+if [ ! -f $UPDATE_STATE_FILE ];
 then
     doLog "File does not exists. Create it"
-    touch update-state.txt
+    touch $UPDATE_STATE_FILE
     setUpdateState 0
-    rm acs-server-setup.txt
+    rm $LOGFILE
 else
-    UPDATE_STATE=$(< update-state.txt)
+    UPDATE_STATE=$(< ${UPDATE_STATE_FILE})
     doLog "File exists. UpdateState= $UPDATE_STATE"
 fi
 
@@ -45,7 +48,7 @@ case $UPDATE_STATE in
 
    # Disable the release upgrader
    doLog "==> Disabling the release upgrader"
-   #sed -i.bak 's/^Prompt=.*$/Prompt=never/' /etc/update-manager/release-upgrades
+   sed -i.bak 's/^Prompt=.*$/Prompt=never/' /etc/update-manager/release-upgrades
 
    doLog "==> Checking version of Ubuntu"
    . /etc/lsb-release
@@ -63,7 +66,7 @@ case $UPDATE_STATE in
    doLog "UpdateState is 1"
 
 
-   echo "@reboot /home/ubuntu/acs-server-setup/on_reboot.sh && /home/ubuntu/acs-server-setup/acs-server-setup.sh" > mycron
+   echo "@reboot /home/ubuntu/acs-server-setup/acs-server-setup.sh" > mycron
    crontab mycron
    rm mycron
 
@@ -71,17 +74,17 @@ case $UPDATE_STATE in
    apt-get -y update
    sleep 5
    doLog "==> Performing dist-upgrade (all packages and kernel)"
-   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
+   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
    sleep 5
 
    doLog "Finished apt-get update"
    setUpdateState 2
-   #reboot
+   reboot
    ;;
 
 2)
    doLog "UpdateState is 3. Finished"
-   touch UPDATE_STATE_3.txt
+   touch $PATH_TO_FILE/UPDATE_STATE_3.txt
    setUpdateState 3
    ;;
 

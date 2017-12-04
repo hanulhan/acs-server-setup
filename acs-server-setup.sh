@@ -1,9 +1,11 @@
 #!/bin/bash -eux
 
+
 PATH_TO_FILE=/home/ubuntu/acs-server-setup
 LOGFILE=$PATH_TO_FILE/acs-server-setup.txt
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 
+exec >> $LOGFILE 2>&1
 
 
 # Function do set the update state to a file
@@ -15,7 +17,7 @@ function setUpdateState {
 
 function doLog {
    echo $1
-   echo $1 >> $LOGFILE
+   #echo $1 >> $LOGFILE
 }
 
 function doLogUpdateState {
@@ -95,28 +97,34 @@ case $UPDATE_STATE in
 2) # Installation step 2: User specific config
    doLogUpdateState "UPDATE-STATE 2: User specific config"
 
-   doLog "==> delete crontab for ubuntu"
-   crontab -l || true
-   crontab -r || true		# ignore error message
-   doLog $?
-
-   doLog "==> 2.1 Edit vi colorscheme"
-   echo "colorscheme desert" > /home/ubuntu/.vimrc
-
-   doLog "==> 2.1.2 Edit .bashrc"
+   doLog "==> 2.1.1 Edit .bashrc"
    cat $PATH_TO_FILE/bashrc >> /home/ubuntu/.bashrc
+   setUpdateState 3
+   # Fall through
+   ;&
+
+
+3) # Installation step 3: User specific config 2
+
+
+   doLogUpdateState "UPDATE-STATE 3: User specific config 2"
+   doLog "==> 2.1.2 Edit vi colorscheme"
+   echo "colorscheme desert" > /home/ubuntu/.vimrc
 
    doLog "==> 2.2 change user rights for curl and wget"
    chmod 744 /usr/bin/curl
    chmod 744 /usr/bin/wget
 
-   read -n1 -r -p "Press space to continue..." key
-
    doLog "==> 2.3 install nfs-common"
    apt-get -y install nfs-common
+   if [ $? -ne 0 ];
+   then
+       doLog "error"
+   else
+       doLog "ok"
+   fi
 
-
-   read -n1 -r -p "Press space to continue..." key
+   #read -n1 -r -p "Press space to continue..." key
 
    doLog "==> 2.4 Allow root only to add cron job"
    echo "root" > /etc/cron.allow
@@ -131,29 +139,45 @@ case $UPDATE_STATE in
          tomcat7
          ubunt" > /etc/cron.deny
 
-   doLog "==> 2.5 disable ipv6"
-   echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
-   echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
-   echo "net.ipv6.conf.lo.disable_ipv6=2" >> /etc/sysctl.conf
-   sysctl -p
-
-
-   doLog "IPV6 disables " | cat /proc/sys/net/ipv6/conf/all/disable_ipv6
-
-
-   setUpdateState 3
-   # Fall through
-   ;&
+   if [ $( cat /proc/sys/net/ipv6/conf/all/disable_ipv6) -ne 1 ];
+   then
+       doLog "==> 2.5 disable ipv6"
+       echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+       echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+       echo "net.ipv6.conf.lo.disable_ipv6=2" >> /etc/sysctl.conf
+       sysctl -p
+   fi
 
 
 
-3)
-   doLogUpdateState "UPDATE-State 3: UPDATE FINISHED"
-   touch $PATH_TO_FILE/UPDATE_FINISHED
-   setUpdateState 4
+   doLog "==> 2.7 swap file "
+   echo "/swapfile none swap sw 0 0" >> /etc/fstab
+
+
+   doLog "==> 2.8 add user tomcat7"
+   useradd -u 106 tomcat7
+   groupadd -g 111 tomcat7
+   
+   setUpdateState 9
+   sleep 2
+   reboot
    ;;
 
+4)
+   doLogUpdateState "UPDATE-State 4:" 
 
+
+9)
+   doLogUpdateState "UPDATE-State 9: UPDATE FINISHED"
+   touch $PATH_TO_FILE/UPDATE_FINISHED
+
+   doLog "==> delete crontab for ubuntu"
+   crontab -r || true		# ignore error message
+   setUpdateState 10
+   ;;
+
+10)
+   ;;
 
 esac
 

@@ -96,7 +96,9 @@ case $UPDATE_STATE in
    doLogUpdateState "UPDATE-STATE 2: User specific config"
 
    doLog "==> delete crontab for ubuntu"
-   crontab -r
+   crontab -l || true
+   crontab -r || true		# ignore error message
+   doLog $?
 
    doLog "==> 2.1 Edit vi colorscheme"
    echo "colorscheme desert" > /home/ubuntu/.vimrc
@@ -108,8 +110,13 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/curl
    chmod 744 /usr/bin/wget
 
+   read -n1 -r -p "Press space to continue..." key
+
    doLog "==> 2.3 install nfs-common"
    apt-get -y install nfs-common
+
+
+   read -n1 -r -p "Press space to continue..." key
 
    doLog "==> 2.4 Allow root only to add cron job"
    echo "root" > /etc/cron.allow

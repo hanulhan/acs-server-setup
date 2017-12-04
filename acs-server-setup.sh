@@ -5,6 +5,11 @@ PATH_TO_FILE=/home/ubuntu/acs-server-setup
 LOGFILE=$PATH_TO_FILE/acs-server-setup.txt
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 
+
+
+#export DEBIAN_FRONTEND=noninteractive
+#export DEBIAN_PRIORITY=critical
+
 exec >> $LOGFILE 2>&1
 
 
@@ -80,7 +85,7 @@ case $UPDATE_STATE in
    apt-get -y update
    sleep 5
    doLog "==> Performing upgrade (all packages and kernel)"
-   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
+   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
    sleep 5
 
    doLog "==> Performing dist-upgrade (all packages and kernel)"
@@ -116,7 +121,8 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/wget
 
    doLog "==> 2.3 install nfs-common"
-   apt-get -y install nfs-common
+   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install nfs-common
+   #apt-get -y install nfs-common
    if [ $? -ne 0 ];
    then
        doLog "error"
@@ -164,7 +170,8 @@ case $UPDATE_STATE in
    ;;
 
 4)
-   doLogUpdateState "UPDATE-State 4:" 
+   doLogUpdateState "UPDATE-State 4:"
+   ;; 
 
 
 9)

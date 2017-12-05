@@ -164,18 +164,6 @@ case $UPDATE_STATE in
 
    doLogUpdateState "UPDATE-STATE 5: Ubuntu installation 4"
 
-   doLog "==> 2.4 Allow root only to add cron job"
-   echo "root" > /etc/cron.allow
-   echo "deamon
-         bin
-         smtp
-         deamon
-         nuucp
-         listen
-         nobody
-         noaccess
-         tomcat7
-         ubunt" > /etc/cron.deny
 
    if [ $( cat /proc/sys/net/ipv6/conf/all/disable_ipv6) -ne 1 ];
    then
@@ -191,11 +179,6 @@ case $UPDATE_STATE in
    doLog "==> 2.7 swap file "
    echo "/swapfile               none     swap   sw                      0 0" >> /etc/fstab
 
-   doLog "==> 2.8 add user tomcat7"
-   useradd  -u 120 tomcat7
-   groupadd -g 120 tomcat7
-
-
    setUpdateState 6
    sleep 2
    reboot
@@ -206,6 +189,8 @@ case $UPDATE_STATE in
 
    doLogUpdateState "UPDATE-STATE 6: 2.10 Java"
 
+
+   
    add-apt-repository -y ppa:openjdk-r/ppa
    apt-get -y update
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
@@ -222,17 +207,35 @@ case $UPDATE_STATE in
 8) # Install Tomcat7
 
    doLogUpdateState "UPDATE-STATE 8: 3.1 Tomcat7"
+
+   doLog "==> 2.8 add user tomcat7"
+   useradd  -u 120 tomcat7
+   groupadd -g 120 tomcat7
+
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
    setUpdateState 99
    ;&
 
 99)
-   doLogUpdateState "UPDATE-State 99: UPDATE FINISHED"
-   touch $PATH_TO_FILE/UPDATE_FINISHED
+   doLogUpdateState "UPDATE-State 99: mount"
 
    doLog "==> delete crontab for ubuntu"
    crontab -r || true		# ignore error message
 
+
+   doLog "==> 2.4 Allow root only to add cron job"
+   echo "root" > /etc/cron.allow
+   echo "deamon
+         bin
+         smtp
+         deamon
+         nuucp
+         listen
+         nobody
+         noaccess
+         tomcat7
+         ubunt" > /etc/cron.deny
+   
 
    s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
  
@@ -244,9 +247,11 @@ case $UPDATE_STATE in
    fi
 
    setUpdateState 100
-   ;;
+   ;&
 
 100)
+
+   touch $PATH_TO_FILE/UPDATE_FINISHED
    ;;
 
 esac

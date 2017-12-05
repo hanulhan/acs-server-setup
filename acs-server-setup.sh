@@ -121,6 +121,9 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/wget
 
    doLog "==> 2.3 install nfs-common"
+   PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:
+   export PATH
+
    echo "User: $(whoami)"
    echo "Path: $PATH"
    mkdir /mnt/s3
@@ -171,9 +174,9 @@ case $UPDATE_STATE in
    echo "/swapfile none swap sw 0 0" >> /etc/fstab
 
 
-   doLog "==> 2.8 add user tomcat7"
-   useradd -u 106 tomcat7
-   groupadd -g 111 tomcat7
+   #doLog "==> 2.8 add user tomcat7"
+   #useradd -u 106 tomcat7
+   #groupadd -g 111 tomcat7
    
    setUpdateState 9
    sleep 2

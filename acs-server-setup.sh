@@ -121,16 +121,24 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/wget
 
    doLog "==> 2.3 install nfs-common"
-   who am i
+   exec "who am i"
    echo $PATH
-   
-   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install nfs-common
-   #apt-get -y install nfs-common
+   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
+  
    if [ $? -ne 0 ];
    then
-       doLog "error"
+       doLog "error installing s3fs"
    else
-       doLog "ok"
+       doLog "ok installing s3fs"
+   fi
+   s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+   
+   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install nfs-common
+   if [ $? -ne 0 ];
+   then
+       doLog "error mounting"
+   else
+       doLog "ok mounting"
    fi
 
    #read -n1 -r -p "Press space to continue..." key

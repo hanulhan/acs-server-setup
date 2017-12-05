@@ -1,5 +1,6 @@
 #!/bin/bash -eux
 
+exec >> $LOGFILE 2>&1
 
 PATH_TO_FILE=/home/ubuntu/acs-server-setup
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
@@ -7,10 +8,12 @@ UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 
 
 
-#export DEBIAN_FRONTEND=noninteractive
-#export DEBIAN_PRIORITY=critical
+export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_PRIORITY=critical
 
-exec >> $LOGFILE 2>&1
+
+
+PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:
 
 
 # Function do set the update state to a file
@@ -86,10 +89,12 @@ case $UPDATE_STATE in
    sleep 5
    doLog "==> Performing upgrade (all packages and kernel)"
    #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
+   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
    sleep 5
 
    doLog "==> Performing dist-upgrade (all packages and kernel)"
-   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" dist-upgrade
+   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" dist-upgrade
+   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" dist-upgrade
    sleep 5
 
    apt-get -y autoremove
@@ -99,8 +104,8 @@ case $UPDATE_STATE in
    reboot
    ;;
 
-2) # Installation step 2: User specific config
-   doLogUpdateState "UPDATE-STATE 2: User specific config"
+2) # Installation step 2: Ubuntu installation 1
+   doLogUpdateState "UPDATE-STATE 2: Ubunut installation 1"
 
    doLog "==> 2.1.1 Edit .bashrc"
    cat $PATH_TO_FILE/bashrc >> /home/ubuntu/.bashrc
@@ -109,10 +114,10 @@ case $UPDATE_STATE in
    ;&
 
 
-3) # Installation step 3: User specific config 2
+3) # Installation step 3: Ubuntu installation 2
 
 
-   doLogUpdateState "UPDATE-STATE 3: User specific config 2"
+   doLogUpdateState "UPDATE-STATE 3: Ubuntu installation 2"
    doLog "==> 2.1.2 Edit vi colorscheme"
    echo "colorscheme desert" > /home/ubuntu/.vimrc
 
@@ -120,14 +125,23 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/curl
    chmod 744 /usr/bin/wget
 
-   doLog "==> 2.3 install nfs-common"
-   PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:
-   export PATH
+   setUpdateState 4
+   # Fall through
+   ;&
 
-   echo "User: $(whoami)"
-   echo "Path: $PATH"
+4) # Installation step 4: Ubuntu installation 3
+
+
+   doLogUpdateState "UPDATE-STATE 4: Ubuntu installation 3"
+   doLog "==> 2.3 install s3 mount"
+
+   #export PATH
+
+   #echo "User: $(whoami)"
+   #echo "Path: $PATH"
    mkdir /mnt/s3
-   DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
+   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
+   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
   
    if [ $? -ne 0 ];
    then
@@ -136,8 +150,7 @@ case $UPDATE_STATE in
        doLog "ok installing s3fs"
    fi
    s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
-   
-   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install nfs-common
+ 
    if [ $? -ne 0 ];
    then
        doLog "error mounting"
@@ -145,6 +158,17 @@ case $UPDATE_STATE in
        doLog "ok mounting"
    fi
    #read -n1 -r -p "Press space to continue..." key
+
+
+   setUpdateState 5
+   # Fall through
+   ;&
+
+
+5) # Installation step 5: Ubuntu installaion 4
+
+
+   doLogUpdateState "UPDATE-STATE 5: Ubuntu installation 4"
 
    doLog "==> 2.4 Allow root only to add cron job"
    echo "root" > /etc/cron.allow
@@ -171,30 +195,50 @@ case $UPDATE_STATE in
 
 
    doLog "==> 2.7 swap file "
-   echo "/swapfile none swap sw 0 0" >> /etc/fstab
+   echo "/swapfile               none     swap   sw                      0 0" >> /etc/fstab
+
+   doLog "==> 2.8 add user tomcat7"
+   useradd  -u 120 tomcat7
+   groupadd -g 120 tomcat7
 
 
-   #doLog "==> 2.8 add user tomcat7"
-   #useradd -u 106 tomcat7
-   #groupadd -g 111 tomcat7
-   
-   setUpdateState 9
+   setUpdateState 6
    sleep 2
    reboot
    ;;
 
-4)
-   doLogUpdateState "UPDATE-State 4:"
-   ;; 
 
+6) # Installation step 6: Java
 
-9)
-   doLogUpdateState "UPDATE-State 9: UPDATE FINISHED"
+   doLogUpdateState "UPDATE-STATE 6: 2.10 Java"
+
+   add-apt-repository -y ppa:openjdk-r/ppa
+   apt-get -y update
+   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+   setUpdateState 7
+   ;&
+
+7) # Installation step 7: Mysql-client
+
+   doLogUpdateState "UPDATE-STATE 7: 2.11 Mysql-client skipped"
+   #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+   setUpdateState 8
+   ;&
+
+8) # Install Tomcat7
+
+   doLogUpdateState "UPDATE-STATE 8: 3.1 Tomcat7"
+   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+   setUpdateState 99
+   ;&
+
+99)
+   doLogUpdateState "UPDATE-State 99: UPDATE FINISHED"
    touch $PATH_TO_FILE/UPDATE_FINISHED
 
    doLog "==> delete crontab for ubuntu"
    crontab -r || true		# ignore error message
-   setUpdateState 10
+   setUpdateState 100
    ;;
 
 10)

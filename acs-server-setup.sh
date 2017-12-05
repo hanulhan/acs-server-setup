@@ -121,8 +121,9 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/wget
 
    doLog "==> 2.3 install nfs-common"
-   exec "who am i"
-   echo $PATH
+   echo "SUDO_USER: $SUDO_USER"
+   echo "User: $whoami"
+   echo "Path: $PATH"
    DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
   
    if [ $? -ne 0 ];
@@ -140,7 +141,6 @@ case $UPDATE_STATE in
    else
        doLog "ok mounting"
    fi
-
    #read -n1 -r -p "Press space to continue..." key
 
    doLog "==> 2.4 Allow root only to add cron job"

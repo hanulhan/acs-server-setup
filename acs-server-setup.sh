@@ -2,7 +2,7 @@
 
 
 PATH_TO_FILE=/home/ubuntu/acs-server-setup
-LOGFILE=$PATH_TO_FILE/acs-server-setup.txt
+LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 
 
@@ -121,9 +121,9 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/wget
 
    doLog "==> 2.3 install nfs-common"
-   echo "SUDO_USER: $SUDO_USER"
-   echo "User: $whoami"
+   echo "User: $(whoami)"
    echo "Path: $PATH"
+   mkdir /mnt/s3
    DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
   
    if [ $? -ne 0 ];

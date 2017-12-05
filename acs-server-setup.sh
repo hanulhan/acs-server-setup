@@ -1,6 +1,6 @@
 #!/bin/bash -eux
 
-exec >> $LOGFILE 2>&1
+
 
 PATH_TO_FILE=/home/ubuntu/acs-server-setup
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
@@ -12,6 +12,7 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBIAN_PRIORITY=critical
 
 
+exec >> $LOGFILE 2>&1
 
 PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:
 
@@ -149,14 +150,7 @@ case $UPDATE_STATE in
    else
        doLog "ok installing s3fs"
    fi
-   s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
- 
-   if [ $? -ne 0 ];
-   then
-       doLog "error mounting"
-   else
-       doLog "ok mounting"
-   fi
+
    #read -n1 -r -p "Press space to continue..." key
 
 
@@ -238,10 +232,21 @@ case $UPDATE_STATE in
 
    doLog "==> delete crontab for ubuntu"
    crontab -r || true		# ignore error message
+
+
+   s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+ 
+   if [ $? -ne 0 ];
+   then
+       doLog "error mounting"
+   else
+       doLog "ok mounting"
+   fi
+
    setUpdateState 100
    ;;
 
-10)
+100)
    ;;
 
 esac

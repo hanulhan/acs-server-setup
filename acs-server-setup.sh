@@ -5,7 +5,8 @@
 PATH_TO_FILE=/home/ubuntu/acs-server-setup
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
-
+TOMCAT7_USER_ID=120
+TOMCAT7_GROUP_ID=120
 
 
 export DEBIAN_FRONTEND=noninteractive
@@ -71,7 +72,6 @@ case $UPDATE_STATE in
    crontab mycron
    rm mycron
 
-   cat /etc/group | grep tomcat7
 
    # Disable the release upgrader
    doLog "==> Disabling the release upgrader"
@@ -99,7 +99,6 @@ case $UPDATE_STATE in
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" dist-upgrade
    sleep 5
 
-   cat /etc/group | grep tomcat7
    apt-get -y autoremove
 
    doLog "==> Finished apt-get upgrade. Reboot now"
@@ -110,7 +109,6 @@ case $UPDATE_STATE in
 2) # Installation step 2: Ubuntu installation 1
    doLogUpdateState "UPDATE-STATE 2: Ubunut installation 1"
 
-   cat /etc/group | grep tomcat7
    doLog "==> 2.1.1 Edit .bashrc"
    cat $PATH_TO_FILE/bashrc >> /home/ubuntu/.bashrc
    setUpdateState 3
@@ -125,7 +123,6 @@ case $UPDATE_STATE in
    doLog "==> 2.1.2 Edit vi colorscheme"
    echo "colorscheme desert" > /home/ubuntu/.vimrc
 
-   cat /etc/group | grep tomcat7
    doLog "==> 2.2 change user rights for curl and wget"
    chmod 744 /usr/bin/curl
    chmod 744 /usr/bin/wget
@@ -140,7 +137,6 @@ case $UPDATE_STATE in
    doLogUpdateState "UPDATE-STATE 4: Ubuntu installation 3"
    doLog "==> 2.3 install s3 mount"
 
-   cat /etc/group | grep tomcat7
 
    #echo "User: $(whoami)"
    #echo "Path: $PATH"
@@ -156,11 +152,9 @@ case $UPDATE_STATE in
        doLog "ok installing s3fs"
    fi
 
-   cat /etc/group | grep tomcat7
    #read -n1 -r -p "Press space to continue..." key
 
 
-   cat /etc/group | grep tomcat7
    setUpdateState 5
    # Fall through
    ;&
@@ -173,7 +167,6 @@ case $UPDATE_STATE in
 
    #export PATH
 
-   cat /etc/group | grep tomcat7
    #export PATH
    if [ $( cat /proc/sys/net/ipv6/conf/all/disable_ipv6) -ne 1 ];
    then
@@ -189,7 +182,6 @@ case $UPDATE_STATE in
    doLog "==> 2.7 swap file "
    echo "/swapfile               none     swap   sw                      0 0" >> /etc/fstab
 
-   cat /etc/group | grep tomcat7
    setUpdateState 6
    sleep 2
    reboot
@@ -201,14 +193,12 @@ case $UPDATE_STATE in
    doLogUpdateState "UPDATE-STATE 6: 2.10 Java"
 
 
-   cat /etc/group | grep tomcat7
    
    add-apt-repository -y ppa:openjdk-r/ppa
    apt-get -y update
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
    setUpdateState 7
 
-   cat /etc/group | grep tomcat7
 
    ;&
 
@@ -218,7 +208,6 @@ case $UPDATE_STATE in
    #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
 
 
-   cat /etc/group | grep tomcat7
    setUpdateState 8
    ;&
 
@@ -227,10 +216,12 @@ case $UPDATE_STATE in
    doLogUpdateState "UPDATE-STATE 8: 3.1 Tomcat7"
 
    doLog "==> 2.8 add user tomcat7"
-   useradd  -u 120 tomcat7
-   groupadd -g 120 tomcat7
 
-   cat /etc/group | grep tomcat7
+   groupadd --system --gid $TOMCAT7_GROUP_ID tomcat7
+   useradd  --system --uid $TOMCAT7_USER_ID --gid $TOMCAT7_GROUP_ID tomcat7
+
+
+   echo $(cat /etc/group | grep tomcat7)
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
    setUpdateState 99
    ;&
@@ -238,7 +229,7 @@ case $UPDATE_STATE in
 99)
    doLogUpdateState "UPDATE-State 99: mount"
 
-   cat /etc/group | grep tomcat7
+   echo $(cat /etc/group | grep tomcat7)
    doLog "==> delete crontab for ubuntu"
    crontab -r || true		# ignore error message
 

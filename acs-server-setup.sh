@@ -223,6 +223,14 @@ case $UPDATE_STATE in
 
    echo $(cat /etc/group | grep tomcat7)
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install tomcat7
+   setUpdateState 9
+   ;&
+
+
+9) # Setup Tomcat7
+
+   doLogUpdateState "UPDATE-STATE 9: Tomcat7 setup"
+
    setUpdateState 99
    ;&
 

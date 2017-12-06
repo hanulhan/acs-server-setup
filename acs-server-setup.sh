@@ -222,7 +222,7 @@ case $UPDATE_STATE in
 
 
    echo $(cat /etc/group | grep tomcat7)
-   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install tomcat7
    setUpdateState 99
    ;&
 

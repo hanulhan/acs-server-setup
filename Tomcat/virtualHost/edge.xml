@@ -1,0 +1,5 @@
+<Context path="/edge"
+        docBase="/mnt/data/edge"
+        caseSensitive="false"
+/>
+

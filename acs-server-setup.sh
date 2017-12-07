@@ -239,9 +239,9 @@ case $UPDATE_STATE in
    mv /var/lib/tomcat7/conf/server.xml /var/lib/tomcat7/conf/server.xml.001
    cp Tomcat/conf/*.xml /var/lib/tomcat7/conf
       
-   cp Tomcat/lib/*.jar /usr/share/tomcat7/lib
+   cp Tomcat/lib/*.jar /usr/share/tomcat7/lib/
    
-   cp Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost
+   cp Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost/
 
    echo '<% response.sendRedirect("/ACS"); %>' >  /var/lib/tomcat7/webapps/ROOT/index.jsp   
 

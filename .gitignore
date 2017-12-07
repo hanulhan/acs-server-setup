@@ -1,4 +1,6 @@
 *.log
 update-state.txt
 *.bak
+*.tar
+*.gz
 UPDATE_FINISHED

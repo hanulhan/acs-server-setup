@@ -1,8 +1,8 @@
 #!/bin/bash -eux
 
 MOUNTPOINT=/mnt/s3
-PATH_TO_SCRIPT=$MOUNTPOINT/acs-server-setup/acs-server-setup.sh
-PATH_TO_FILE=/home/ubuntu
+PATH_TO_FILE=/home/ubuntu/acs-server-setup
+PATH_TO_SCRIPT=$PATH_TO_FILE/acs-server-setup.sh
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 TOMCAT7_USER_ID=120
@@ -33,14 +33,6 @@ function doLog {
 function doLogUpdateState {
     doLog "########## $1 ##########"
 }
-
-# check if mountpoint exisxts
-if [[ $(findmnt -M "$MOUNTPOINT") ]]; then
-    doLog "Mountpoint $MOUNTPOINT exists"
-else
-    doLog "Mount $MOUNTPOINT"
-    s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
-fi
 
 #Check if Logfile already exists. 
 if [ ! -f $LOGFILE ];
@@ -270,7 +262,7 @@ case $UPDATE_STATE in
          ubunt" > /etc/cron.deny
    
 
-   #s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+   s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
  
 
    setUpdateState 100

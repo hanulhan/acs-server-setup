@@ -235,13 +235,13 @@ case $UPDATE_STATE in
 
 
    doLog "==> Copy tomcat-server configuration files"
-   mv /var/lib/tmcat7/conf/web.xml /var/lib/tomcat7/conf/web.xml.001
+   mv /var/lib/tomcat7/conf/web.xml /var/lib/tomcat7/conf/web.xml.001
    cp web.xml /var/lib/tomcat7/conf
       
-   mv /var/lib/tmcat7/conf/context.xml /var/lib/tomcat7/conf/context.xml.001
+   mv /var/lib/tomcat7/conf/context.xml /var/lib/tomcat7/conf/context.xml.001
    cp context.xml /var/lib/tomcat7/conf
 
-   mv /var/lib/tmcat7/conf/server.xml /var/lib/tomcat7/conf/server.xml.001
+   mv /var/lib/tomcat7/conf/server.xml /var/lib/tomcat7/conf/server.xml.001
    cp server.xml /var/lib/tomcat7/conf
 
    cp session-userPreferences-$(ACS´_VERSION).jar /usr/share/tomcat7/lib

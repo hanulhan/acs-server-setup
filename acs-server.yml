@@ -1,0 +1,191 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for EC2 preview-acs.acentic.com'
+Parameters:
+  VpcStack: 
+        Description: "Stackname for the vpc-stack"
+        Default: "vpc-rbe"
+        Type: "String"
+  ProductiveKeyPair:
+        Description: "Enter the EC2 Key Pair"
+        Default: "playground"
+        Type: "AWS::EC2::KeyPair::KeyName"
+  BackendInstanceType: 
+      Description: "preview-acs.acentic.com EC2 instance type"
+      Type: "String"
+      Default: "t2.small"
+      AllowedValues: 
+        - "t2.nano"
+        - "t2.micro"
+        - "t2.small"
+        - "t2.medium"
+        - "t2.large"
+        - "m3.medium"
+        - "m3.large"
+        - "m3.xlarge"
+        - "m4.large"
+      ConstraintDescription: "must be a valid EC2 instance type."
+Mappings: 
+    AWSInstanceType2Arch: 
+      t2.nano: 
+        Arch: "HVM64"
+      t2.micro: 
+        Arch: "HVM64"
+      t2.small: 
+        Arch: "HVM64"
+      t2.medium: 
+        Arch: "HVM64"
+      t2.large: 
+        Arch: "HVM64"
+      m3.medium: 
+        Arch: "HVM64"
+      m3.large: 
+        Arch: "HVM64"
+      m3.xlarge: 
+        Arch: "HVM64"
+      m4.large: 
+        Arch: "HVM64"
+    AWSRegionArch2AMI: #Ubuntu Server 14.04 LTS
+      eu-west-1: #Ireland
+        HVM64: "ami-add175d4"
+      eu-west-2: #London
+        HVM64: "ami-ecbea388"
+      eu-central-1: #Frankfurt
+        HVM64: "ami-97e953f8"
+      us-east-1: #N Virginia
+        HVM64: "ami-da05a4a0"
+Resources:
+  backendacsacenticcom:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop 
+      IamInstanceProfile: # arn:aws:iam::376433452670:instance-profile/FullAccessToBigData
+        Ref: "AllowAccessToBigDataProfile"
+      ImageId: 
+        Fn::FindInMap: 
+            - "AWSRegionArch2AMI"
+            - 
+              Ref: "AWS::Region"
+            - 
+              Fn::FindInMap: 
+                - "AWSInstanceType2Arch"
+                - 
+                  Ref: "BackendInstanceType"
+                - "Arch"
+      InstanceType: 
+        Ref: "BackendInstanceType"
+      KeyName: 
+        Ref: "ProductiveKeyPair"
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: uli-ec2-test.acentic.com
+      - Key: Uli
+        Value: 'yes'
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: 'Primary network interface backend-acs'
+        DeviceIndex: 0
+        SubnetId:
+            Fn::ImportValue: !Sub '${VpcStack}-SubnetAPublic'
+        GroupSet:
+        - Ref: 'sgbackendacsacenticcom'
+      
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          sudo apt-get update
+          sudo mkdir /mnt/s3
+          sudo apt -y install s3fs
+          sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/`
+          echo "User: $(whoami)" > home/ubuntu/user.log
+          echo "Location: $(pwd)" > home/ubuntu/pwd.log
+          cp /mnt/s3/acs-server-setup.tar.gz /home/ubuntu
+          cd /home/ubuntu
+          tar -xzf acs-server-setup.tar.gz
+          rm acs-server-setup.tar.gz
+          sudo chown -R ubuntu:ubuntu acs-server-setup/
+          sudo acs-server-setup/acs-server-setup.sh &
+
+      
+  sgbackendacsacenticcom:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: allow SSH only
+      VpcId:
+        Fn::ImportValue: !Sub '${VpcStack}-VPC'
+  ingressCLNOfficeLAN:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId:
+        Ref: sgbackendacsacenticcom
+      IpProtocol: "-1"
+      CidrIp: 195.243.15.130/32
+  ingressCLNRnDRouter:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId:
+        Ref: sgbackendacsacenticcom
+      IpProtocol: "-1"
+      CidrIp: 217.7.30.158/32
+  AllowAccessToBigDataProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: AllowAccessToBigDataRole
+  AllowAccessToBigDataPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: AllowAccessToBigDataPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: 
+              - "s3:AbortMultipartUpload"
+              - "s3:GetAccelerateConfiguration"
+              - "s3:Get*"
+              - "s3:List*"
+              - "s3:Put*"
+              - "s3:Replicate*"
+              - "s3:DeleteObject"
+            Resource:
+              - "arn:aws:s3:::acentic-bigdata"
+              - "arn:aws:s3:::acentic-bigdata/*"
+        Roles:
+        - !Ref AllowAccessToBigDataRole
+
+  AllowAccessToPlaygroundBucket:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: AllowAccessToPlaygroundBucket
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: 
+              - "s3:AbortMultipartUpload"
+              - "s3:GetAccelerateConfiguration"
+              - "s3:Get*"
+              - "s3:List*"
+              - "s3:Put*"
+              - "s3:Replicate*"
+              - "s3:DeleteObject"
+            Resource:
+              - "arn:aws:s3:::acentic-playground-useast1"
+              - "arn:aws:s3:::acentic-playground-useast1/*"
+        Roles:
+        - !Ref AllowAccessToBigDataRole
+  AllowAccessToBigDataRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"

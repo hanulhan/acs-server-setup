@@ -1,0 +1,2 @@
+aws cloudformation create-stack --stack-name uli-ec5 --profile awsTest --capabilities=CAPABILITY_IAM --template-body file://acs-server.yml
+aws cloudformation --profile=awsTest delete-stack --stack-name uli-ec5

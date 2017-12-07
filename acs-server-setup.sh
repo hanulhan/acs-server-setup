@@ -1,7 +1,7 @@
 #!/bin/bash -eux
 
 MOUNTPOINT=/mnt/s3
-PATH_TO_SCRIPT=$MOUNTPOINT/acs-server-setup
+PATH_TO_SCRIPT=$MOUNTPOINT/acs-server-setup/acs-server-setup.sh
 PATH_TO_FILE=/home/ubuntu
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
@@ -76,7 +76,7 @@ case $UPDATE_STATE in
 
    # install cronjob to procede execution after restart
    doLog "==> install cronjob"
-   echo "@reboot /home/ubuntu/acs-server-setup/acs-server-setup.sh" > mycron
+   echo "@reboot $PATH_TO_SCRIPT" > mycron
    crontab mycron
    rm mycron
 

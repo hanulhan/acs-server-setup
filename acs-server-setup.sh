@@ -237,7 +237,7 @@ case $UPDATE_STATE in
    mv /var/lib/tomcat7/conf/web.xml /var/lib/tomcat7/conf/web.xml.001
    mv /var/lib/tomcat7/conf/context.xml /var/lib/tomcat7/conf/context.xml.001
    mv /var/lib/tomcat7/conf/server.xml /var/lib/tomcat7/conf/server.xml.001
-   cp Tomcat/conf/*.xml /var/lib/tomcat7/conf
+   cp Tomcat/conf/*.xml /var/lib/tomcat7/conf/
       
    cp Tomcat/lib/*.jar /usr/share/tomcat7/lib/
    

@@ -1,0 +1,5 @@
+<Context path="/shop"
+        docBase="/mnt/data/shop"
+        caseSensitive="false"
+/>
+

@@ -1,0 +1,5 @@
+<Context path="/acenticmedia"
+        docBase="/mnt/data/acenticmedia"
+        caseSensitive="false"
+/>
+

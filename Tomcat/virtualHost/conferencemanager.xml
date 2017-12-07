@@ -1,0 +1,5 @@
+<Context path="/conferencemanager"
+        docBase="/mnt/data/conferencemanager"
+        caseSensitive="false"
+/>
+

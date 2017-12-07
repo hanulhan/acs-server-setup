@@ -1,8 +1,8 @@
 #!/bin/bash -eux
 
-
-
-PATH_TO_FILE=/home/ubuntu/acs-server-setup
+MOUNTPOINT=/mnt/s3
+PATH_TO_SCRIPT=$MOUNTPOINT/acs-server-setup
+PATH_TO_FILE=/home/ubuntu
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 TOMCAT7_USER_ID=120
@@ -33,6 +33,14 @@ function doLog {
 function doLogUpdateState {
     doLog "########## $1 ##########"
 }
+
+# check if mountpoint exisxts
+if [[ $(findmnt -M "$MOUNTPOINT") ]]; then
+    doLog "Mountpoint $MOUNTPOINT exists"
+else
+    doLog "Mount $MOUNTPOINT"
+    s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+fi
 
 #Check if Logfile already exists. 
 if [ ! -f $LOGFILE ];
@@ -90,12 +98,10 @@ case $UPDATE_STATE in
    apt-get -y update
    sleep 5
    doLog "==> Performing upgrade (all packages and kernel)"
-   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" upgrade
    sleep 5
 
    doLog "==> Performing dist-upgrade (all packages and kernel)"
-   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" dist-upgrade
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" dist-upgrade
    sleep 5
 
@@ -127,7 +133,7 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/curl
    chmod 744 /usr/bin/wget
 
-   setUpdateState 4
+   setUpdateState 5
    # Fall through
    ;&
 
@@ -141,7 +147,6 @@ case $UPDATE_STATE in
    #echo "User: $(whoami)"
    #echo "Path: $PATH"
    mkdir /mnt/s3
-   #DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
   
 
@@ -191,22 +196,17 @@ case $UPDATE_STATE in
 6) # Installation step 6: Java
 
    doLogUpdateState "UPDATE-STATE 6: 2.10 Java"
-
-
    
    add-apt-repository -y ppa:openjdk-r/ppa
    apt-get -y update
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
    setUpdateState 7
-
-
    ;&
 
 7) # Installation step 7: Mysql-client
 
    doLogUpdateState "UPDATE-STATE 7: 2.11 Mysql-client skipped"
    #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
-
 
    setUpdateState 8
    ;&
@@ -269,14 +269,8 @@ case $UPDATE_STATE in
          ubunt" > /etc/cron.deny
    
 
-   s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+   #s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
  
-   if [ $? -ne 0 ];
-   then
-       doLog "error mounting"
-   else
-       doLog "ok mounting"
-   fi
 
    setUpdateState 100
    ;&

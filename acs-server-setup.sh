@@ -109,6 +109,7 @@ case $UPDATE_STATE in
 
    doLog "==> Finished apt-get upgrade. Reboot now"
    setUpdateState 2
+   echo "Mountpoint: $(findmnt -M "$MOUNTPOINT")"
    reboot
    ;;
 

@@ -7,6 +7,7 @@ LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
 TOMCAT7_USER_ID=120
 TOMCAT7_GROUP_ID=120
+ACS_VERSION=1.2.2
 
 
 export DEBIAN_FRONTEND=noninteractive
@@ -223,13 +224,36 @@ case $UPDATE_STATE in
 
    echo $(cat /etc/group | grep tomcat7)
    apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install tomcat7
+   setUpdateState 9
+   ;&
+
+
+9) # Setup Tomcat7
+
+   doLogUpdateState "UPDATE-STATE 9: Tomcat7 setup"
+   service tomcat7 stop
+
+
+   doLog "==> Copy tomcat-server configuration files"
+   mv /var/lib/tmcat7/conf/web.xml /var/lib/tomcat7/conf/web.xml.001
+   cp web.xml /var/lib/tomcat7/conf
+      
+   mv /var/lib/tmcat7/conf/context.xml /var/lib/tomcat7/conf/context.xml.001
+   cp context.xml /var/lib/tomcat7/conf
+
+   mv /var/lib/tmcat7/conf/server.xml /var/lib/tomcat7/conf/server.xml.001
+   cp server.xml /var/lib/tomcat7/conf
+
+   cp session-userPreferences-$(ACS´_VERSION).jar /usr/share/tomcat7/lib
+   
+   echo '<% response.sendRedirect("/ACS"); %>' >  /var/lib/tomcat7/webapps/ROOT/index.jsp   
+
    setUpdateState 99
    ;&
 
 99)
    doLogUpdateState "UPDATE-State 99: mount"
 
-   echo $(cat /etc/group | grep tomcat7)
    doLog "==> delete crontab for ubuntu"
    crontab -r || true		# ignore error message
 

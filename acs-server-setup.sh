@@ -126,7 +126,7 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/curl
    chmod 744 /usr/bin/wget
 
-   setUpdateState 5
+   setUpdateState 4
    # Fall through
    ;&
 
@@ -139,20 +139,9 @@ case $UPDATE_STATE in
 
    #echo "User: $(whoami)"
    #echo "Path: $PATH"
-   mkdir /mnt/s3
-   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
+   #mkdir /mnt/s3
+   #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
   
-
-   if [ $? -ne 0 ];
-   then
-       doLog "error installing s3fs"
-   else
-       doLog "ok installing s3fs"
-   fi
-
-   #read -n1 -r -p "Press space to continue..." key
-
-
    setUpdateState 5
    # Fall through
    ;&

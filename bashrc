@@ -1,4 +1,4 @@
-if [[ $- == *i* ]]
+if [[ $- == *i* ]];
 then
     bind '"\e[A": history-search-backward'
     bind '"\e[B": history-search-forward'
@@ -11,6 +11,6 @@ EC2_SECURITY_GROUP="`sudo wget -q -O - http://instance-data/latest/meta-data/sec
 if [ "$color_prompt" = yes ]; 
     then PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@$EC2_SECURITY_GROUP\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 else
-    PS1='${debian_chroot:+($debian_chroot)}\u@$EC2_SECURITY_GROUP:\w\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\u@$EC2_SECURITY_GROUP:\w\$'
 fi
 

@@ -1,5 +1,5 @@
 <Context path="/shop"
-        docBase="/mnt/data/shop"
+        docBase="/mnt/s3/data/shop"
         caseSensitive="false"
 />
 

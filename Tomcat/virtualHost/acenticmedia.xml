@@ -1,5 +1,5 @@
 <Context path="/acenticmedia"
-        docBase="/mnt/data/acenticmedia"
+        docBase="/mnt/s3/data/acenticmedia"
         caseSensitive="false"
 />
 

@@ -1,5 +1,5 @@
 <Context path="/conferencemanager"
-        docBase="/mnt/data/conferencemanager"
+        docBase="/mnt/s3/data/conferencemanager"
         caseSensitive="false"
 />
 

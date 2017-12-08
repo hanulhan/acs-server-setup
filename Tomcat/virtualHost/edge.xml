@@ -1,5 +1,5 @@
 <Context path="/edge"
-        docBase="/mnt/data/edge"
+        docBase="/mnt/s3/data/edge"
         caseSensitive="false"
 />
 

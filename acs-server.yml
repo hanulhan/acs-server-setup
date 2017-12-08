@@ -95,18 +95,70 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
+          cd /home/ubuntu
+          WAR_FILE=ACS.war
+          SCRIPT_FILE=acs-server-setup.tar.gz
+          touch cloudformation.log
+          exec >> cloudformation.log 2>&1
+
+          # mount s3 bucket
           sudo apt-get update
           sudo mkdir /mnt/s3
           sudo apt -y install s3fs
           sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/`
-          echo "User: $(whoami)" > home/ubuntu/user.log
-          echo "Location: $(pwd)" > home/ubuntu/pwd.log
-          cp /mnt/s3/acs-server-setup.tar.gz /home/ubuntu
-          cd /home/ubuntu
-          tar -xzf acs-server-setup.tar.gz
-          rm acs-server-setup.tar.gz
-          sudo chown -R ubuntu:ubuntu acs-server-setup/
-          sudo acs-server-setup/acs-server-setup.sh &
+          sleep 5
+          
+          #wait for s3 mounted
+          COUNTER=0
+          until [[ $(findmnt -M "/mnt/s3") ]] || [ $COUNTER -eq 60 ]; do
+             sleep 1
+             COUNTER=$[$COUNTER +1]
+          done
+
+          if [[ $(findmnt -M "/mnt/s3") ]]; then
+              echo "Mount available after $COUNTER s"
+
+
+              # copy installation script
+              COUNTER=0
+              until [[ -f "/mnt/s3/acs/$SCRIPT_FILE" ]] || [ $COUNTER -eq 60 ];do
+                 sleep 1
+                 COUNTER=$[$COUNTER +1]
+              done
+
+              if [ -f $SCRIPT_FILE ]; then
+                sudo cp /mnt/s3/acs/SCRIPT_FILE.war /home/ubuntu
+                echo "File $SCRIPT_FILE available after $COUNTER s"
+              else
+                echo "File $SCRIPT_FILE not available after $COUNTER s"
+              fi
+
+              
+              # copy war
+              COUNTER=0
+              until [[ -f "/mnt/s3/acs/$WAR_FILE" ]] || [ $COUNTER -eq 60 ];do
+                 sleep 1
+                 COUNTER=$[$COUNTER +1]
+              done
+
+              if [ -f $WAR_FILE ]; then
+                sudo cp /mnt/s3/acs/$WAR_FILE /home/ubuntu
+                echo "File $WAR_FILE available after $COUNTER s"
+              else
+                echo "File $WAR_FILE not available after $COUNTER s"
+              fi
+              
+             
+              sudo tar -xzf acs-server-setup.tar.gz
+              sudo rm acs-server-setup.tar.gz
+              sudo chown -R ubuntu:ubuntu acs-server-setup/
+              
+              # run script
+              sudo acs-server-setup/acs-server-setup.sh &
+          else
+             echo "s3 not mounted after $COUNTER s"
+          fi
+          
 
       
   sgbackendacsacenticcom:

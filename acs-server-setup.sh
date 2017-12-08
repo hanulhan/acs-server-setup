@@ -5,6 +5,7 @@ PATH_TO_FILE=/home/ubuntu/acs-server-setup
 PATH_TO_SCRIPT=$PATH_TO_FILE/acs-server-setup.sh
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
+WAR_FILE=ACS.war
 TOMCAT7_USER_ID=120
 TOMCAT7_GROUP_ID=120
 
@@ -32,6 +33,11 @@ function doLog {
 
 function doLogUpdateState {
     doLog "########## $1 ##########"
+}
+
+function package_exists() {
+    dpkg -s $1 &> /dev/null
+    return $?    
 }
 
 #Check if Logfile already exists. 
@@ -111,8 +117,7 @@ case $UPDATE_STATE in
    doLog "==> 2.1.1 Edit .bashrc"
    cat $PATH_TO_FILE/bashrc >> /home/ubuntu/.bashrc
    setUpdateState 3
-   # Fall through
-   ;&
+   ;&   # Fall through
 
 
 3) # Installation step 3: Ubuntu installation 2
@@ -127,93 +132,83 @@ case $UPDATE_STATE in
    chmod 744 /usr/bin/wget
 
    setUpdateState 4
-   # Fall through
-   ;&
+   ;&   # Fall through
 
 4) # Installation step 4: Ubuntu installation 3
 
-
    doLogUpdateState "UPDATE-STATE 4: Ubuntu installation 3"
    doLog "==> 2.3 install s3 mount"
-
-
-   #echo "User: $(whoami)"
-   #echo "Path: $PATH"
-   #mkdir /mnt/s3
-   #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install s3fs
   
    setUpdateState 5
-   # Fall through
-   ;&
+   ;&   # Fall through
 
 
 5) # Installation step 5: Ubuntu installaion 4
 
-
    doLogUpdateState "UPDATE-STATE 5: Ubuntu installation 4"
-
-   #export PATH
-
-   #export PATH
+   
    if [ $( cat /proc/sys/net/ipv6/conf/all/disable_ipv6) -ne 1 ];
    then
        doLog "==> 2.5 disable ipv6"
-       echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+       echo "net.ipv6.conf.all.disable_ipv6=1"     >> /etc/sysctl.conf
        echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
-       echo "net.ipv6.conf.lo.disable_ipv6=2" >> /etc/sysctl.conf
+       echo "net.ipv6.conf.lo.disable_ipv6=2"      >> /etc/sysctl.conf
        sysctl -p
    fi
-
-
 
    doLog "==> 2.7 swap file "
    echo "/swapfile               none     swap   sw                      0 0" >> /etc/fstab
 
    setUpdateState 6
    sleep 2
-   reboot
-   ;;
+   ;&      # Fall through
 
 
 6) # Installation step 6: Java
 
    doLogUpdateState "UPDATE-STATE 6: 2.10 Java"
-   
-   add-apt-repository -y ppa:openjdk-r/ppa
-   apt-get -y update
-   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
-   setUpdateState 7
-   ;&
+
+   if ! package_exists openjdk-7-jdk; then
+      add-apt-repository -y ppa:openjdk-r/ppa
+      apt-get -y update
+      apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+      setUpdateState 7
+   fi
+   ;&      # Fall through
 
 7) # Installation step 7: Mysql-client
 
    doLogUpdateState "UPDATE-STATE 7: 2.11 Mysql-client skipped"
-   #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+   #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install mysql-client
 
    setUpdateState 8
-   ;&
+   ;&      # Fall through
 
 8) # Install Tomcat7
 
-   doLogUpdateState "UPDATE-STATE 8: 3.1 Tomcat7"
+   doLogUpdateState "UPDATE-STATE 8: 3.1 Tomcat7 installation"
 
    doLog "==> 2.8 add user tomcat7"
-
-   groupadd --system --gid $TOMCAT7_GROUP_ID tomcat7
-   useradd  --system --uid $TOMCAT7_USER_ID --gid $TOMCAT7_GROUP_ID tomcat7
-
-
-   echo $(cat /etc/group | grep tomcat7)
-   apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install tomcat7
+   if [ ! $(cat /etc/group | grep -i 'tomcat7') ];
+   then
+      groupadd --system --gid $TOMCAT7_GROUP_ID tomcat7
+   fi
+   if [ ! $(cat /etc/passwd | grep -i 'tomcat7') ];
+   then
+      useradd  --system --uid $TOMCAT7_USER_ID --gid $TOMCAT7_GROUP_ID tomcat7
+   fi   
+   
+   if ! package_exists tomcat7; then
+      apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install tomcat7
+   fi
    setUpdateState 9
-   ;&
+   ;&      # Fall through
 
 
 9) # Setup Tomcat7
 
    doLogUpdateState "UPDATE-STATE 9: Tomcat7 setup"
    service tomcat7 stop
-
 
    doLog "==> Copy tomcat-server configuration files"
    mv /var/lib/tomcat7/conf/web.xml /var/lib/tomcat7/conf/web.xml.001
@@ -223,15 +218,15 @@ case $UPDATE_STATE in
       
    cp $PATH_TO_FILE/Tomcat/lib/*.jar /usr/share/tomcat7/lib/
    
-   cp $PATH_TO_FILE/Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost/
+   #cp $PATH_TO_FILE/Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost/
 
    echo '<% response.sendRedirect("/ACS"); %>' >  /var/lib/tomcat7/webapps/ROOT/index.jsp   
 
-   setUpdateState 99
+   setUpdateState 10
    ;&
 
-99)
-   doLogUpdateState "UPDATE-State 99: mount"
+10)
+   doLogUpdateState "UPDATE-State 10: mount"
 
    doLog "==> delete crontab for ubuntu"
    crontab -r || true		# ignore error message
@@ -250,13 +245,23 @@ case $UPDATE_STATE in
          tomcat7
          ubunt" > /etc/cron.deny
    
-
+   doLog "==> Mount s3 again"
    s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
  
-
-   setUpdateState 100
+   setUpdateState 99
    ;&
 
+99)
+   doLogUpdateState "UPDATE-State 99: Start tomcat"
+   
+   doLog "==> copy war and start tomcat"
+   cp /home/ubuntu/$WAR_FILE /var/lib/tomcat7/webapps
+   sudo chown tomcat7:tomcat7 /var/lib/tomcat7/webapps/$WAR_FILE
+   service tomcat7 start
+   setUpdateState 100
+   ;&
+   
+   
 100)
 
    touch $PATH_TO_FILE/UPDATE_FINISHED

@@ -222,6 +222,7 @@ case $UPDATE_STATE in
 
    echo '<% response.sendRedirect("/ACS"); %>' >  /var/lib/tomcat7/webapps/ROOT/index.jsp   
 
+   
    setUpdateState 10
    ;&
 
@@ -246,8 +247,8 @@ case $UPDATE_STATE in
          ubunt" > /etc/cron.deny
    
    doLog "==> Mount s3 again"
-   s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
- 
+   sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+   sleep 2
    setUpdateState 99
    ;&
 

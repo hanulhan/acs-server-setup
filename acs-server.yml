@@ -105,7 +105,7 @@ Resources:
           sudo apt-get update
           sudo mkdir /mnt/s3
           sudo apt -y install s3fs
-          sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/`
+          sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,uid=`id -u`,umask=0000,mp_umask=0000,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/`
           sleep 5
           
           #wait for s3 mounted
@@ -118,16 +118,34 @@ Resources:
           if [[ $(findmnt -M "/mnt/s3") ]]; then
               echo "Mount available after $COUNTER s"
 
-
-              # copy installation script
               COUNTER=0
-              until [[ -f "/mnt/s3/acs/$SCRIPT_FILE" ]] || [ $COUNTER -eq 60 ];do
+              until [[ -f "/mnt/s3/test.txt" ]] || [ $COUNTER -eq 600 ]; do
+                 sleep 1
+                 COUNTER=$[$COUNTER +1]
+              done
+              
+              COUNTER=0
+              until [[ -d "/mnt/s3/acs" ]] || [ $COUNTER -eq 600 ]; do
                  sleep 1
                  COUNTER=$[$COUNTER +1]
               done
 
-              if [ -f $SCRIPT_FILE ]; then
-                sudo cp /mnt/s3/acs/SCRIPT_FILE.war /home/ubuntu
+              
+              COUNTER=0
+              until [[ -f "/mnt/s3/$SCRIPT_FILE" ]] || [ $COUNTER -eq 600 ]; do
+                 sleep 1
+                 COUNTER=$[$COUNTER +1]
+              done
+              
+              # copy installation script
+              COUNTER=0
+              until [[ -f "/mnt/s3/acs/$SCRIPT_FILE" ]] || [ $COUNTER -eq 600 ]; do
+                 sleep 1
+                 COUNTER=$[$COUNTER +1]
+              done
+
+              if [ -f "/mnt/s3/acs/$SCRIPT_FILE" ]; then
+                sudo cp /mnt/s3/acs/$SCRIPT_FILE /home/ubuntu
                 echo "File $SCRIPT_FILE available after $COUNTER s"
               else
                 echo "File $SCRIPT_FILE not available after $COUNTER s"
@@ -141,7 +159,7 @@ Resources:
                  COUNTER=$[$COUNTER +1]
               done
 
-              if [ -f $WAR_FILE ]; then
+              if [ -f "/mnt/s3/acs/$WAR_FILE" ]; then
                 sudo cp /mnt/s3/acs/$WAR_FILE /home/ubuntu
                 echo "File $WAR_FILE available after $COUNTER s"
               else

@@ -30,7 +30,7 @@
 		maxIdleSwap="15"
 		minIdleSwap="-1"
 		saveOnRestart="true">
-           <Store className="org.apache.catalina.session.FileStore" directory ="/mnt/data/tomcat-session/preview"/>
+           <Store className="org.apache.catalina.session.FileStore" directory ="/mnt/s3/data/tomcat-session/preview"/>
     </Manager>
 
     

@@ -5,6 +5,7 @@ PATH_TO_FILE=/home/ubuntu/acs-server-setup
 PATH_TO_SCRIPT=$PATH_TO_FILE/acs-server-setup.sh
 LOGFILE=$PATH_TO_FILE/acs-server-setup.log
 UPDATE_STATE_FILE=$PATH_TO_FILE/update-state.txt
+KEYSTORE_FILE=$PATH_TO_FILE/Tomcat/acentic.neu.keystore
 WAR_FILE=ACS.war
 TOMCAT7_USER_ID=120
 TOMCAT7_GROUP_ID=120
@@ -167,13 +168,17 @@ case $UPDATE_STATE in
 6) # Installation step 6: Java
 
    doLogUpdateState "UPDATE-STATE 6: 2.10 Java"
-
-   if ! package_exists openjdk-7-jdk; then
-      add-apt-repository -y ppa:openjdk-r/ppa
-      apt-get -y update
-      apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
-      setUpdateState 7
+   
+   if ! package_exists openjdk-8-jdk; then
+      apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-8-jdk
    fi
+   
+   #if ! package_exists openjdk-7-jdk; then
+      #add-apt-repository -y ppa:openjdk-r/ppa
+      #apt-get -y update
+      #apt-get -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" install openjdk-7-jdk
+   #fi
+   setUpdateState 7
    ;&      # Fall through
 
 7) # Installation step 7: Mysql-client
@@ -215,11 +220,28 @@ case $UPDATE_STATE in
    mv /var/lib/tomcat7/conf/context.xml /var/lib/tomcat7/conf/context.xml.001
    mv /var/lib/tomcat7/conf/server.xml /var/lib/tomcat7/conf/server.xml.001
    cp $PATH_TO_FILE/Tomcat/conf/*.xml /var/lib/tomcat7/conf/
-      
+   chown -R root:tomcat7 /var/lib/tomcat7/conf/*.xml
+
    cp $PATH_TO_FILE/Tomcat/lib/*.jar /usr/share/tomcat7/lib/
+   
+   cp $PATH_TO_FILE/Tomcat/conf/setenv.sh /usr/share/tomcat7/bin
+   chmod +x /usr/share/tomcat7/bin/setenv.sh
+   
+   
+   mkdir /home/ubuntu/keystore
+   cp $KEYSTORE_FILE /home/ubuntu/keystore
+   chown -R tomcat7:tomcat7 /home/ubuntu/keystore
    
    #cp $PATH_TO_FILE/Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost/
 
+   touch /etc/authbind/byport/80
+   touch /etc/authbind/byport/443
+   chmod 500 /etc/authbind/byport/80
+   chmod 500 /etc/authbind/byport/443
+   chown tomcat7 /etc/authbind/byport/80
+   chown tomcat7 /etc/authbind/byport/443
+
+   
    echo '<% response.sendRedirect("/ACS"); %>' >  /var/lib/tomcat7/webapps/ROOT/index.jsp   
 
    

@@ -1,0 +1,502 @@
+  AWSTemplateFormatVersion: "2010-09-09"
+  Description: "AWS CloudFormation Sample Template AutoScalingMultiAZWithNotifications: Create a multi-az, load balanced and Auto Scaled sample web site running on an Apache Web Serever. The application is configured to span all Availability Zones in the region and is Auto-Scaled based on the CPU utilization of the web servers. Notifications will be sent to the operator email address on scaling events. The instances are load balanced with a simple health check against the default web page. **WARNING** This template creates one or more Amazon EC2 instances and an Elastic Load Balancer. You will be billed for the AWS resources used if you create a stack from this template."
+  Parameters:
+    InstanceType:
+      Description: "WebServer EC2 instance type"
+      Type: "String"
+      Default: "t2.small"
+      AllowedValues:
+        - "t2.nano"
+        - "t2.micro"
+        - "t2.small"
+        - "t2.medium"
+        - "t2.large"
+        - "m3.medium"
+        - "m3.large"
+        - "m3.xlarge"
+        - "m4.large"
+      ConstraintDescription: "must be a valid EC2 instance type."
+    # OperatorEMail:
+    #   Description: "EMail address to notify if there are any scaling operations"
+    #   Default: it@acentic.com
+    #   Type: "String"
+    #   AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)"
+    #   ConstraintDescription: "must be a valid email address."
+    VpcStack:
+      Description: "Stackname for the vpc-stack"
+      Default: "vpc-rbe"
+      Type: "String"
+    KeyName:
+      Description: "The EC2 Key Pair to allow SSH access to the instances"
+      Default: "playground"
+      Type: "AWS::EC2::KeyPair::KeyName"
+      ConstraintDescription: "must be the name of an existing EC2 KeyPair."
+    LoadBalancerNameParameter:
+      Type: String
+      Description: The new Application Load Balancer name
+      Default: ACSALB
+      MaxLength: 48
+    ALBTargetGroupHealthCheckPathParameter:
+        Type: String
+        Description: The healthcheck path
+        Default: "/elb.html"
+    ListenerCertificateParameter:
+        Type: String
+        Description: The HTTPS Listener certificate ARN (IAM/ACM)
+        Default: "arn:aws:acm:us-east-1:671768498572:certificate/05f8df6e-9d53-47a2-a061-26122f23bc64"
+  Mappings:
+      AWSInstanceType2Arch:
+        t2.nano:
+          Arch: "HVM64"
+        t2.micro:
+          Arch: "HVM64"
+        t2.small:
+          Arch: "HVM64"
+        t2.medium:
+          Arch: "HVM64"
+        t2.large:
+          Arch: "HVM64"
+        m3.medium:
+          Arch: "HVM64"
+        m3.large:
+          Arch: "HVM64"
+        m3.xlarge:
+          Arch: "HVM64"
+        m4.large:
+          Arch: "HVM64"
+      AWSRegionArch2AMI: #Ubuntu Server 14.04 LTS
+        eu-west-1: #Ireland
+          HVM64: "ami-add175d4"
+        eu-west-2: #London
+          HVM64: "ami-ecbea388"
+        eu-central-1: #Frankfurt
+          HVM64: "ami-97e953f8"
+        us-east-1: #N Virginia
+          HVM64: "ami-da05a4a0"
+  Resources:
+    # NotificationTopic:
+    #   Type: "AWS::SNS::Topic"
+    #   Properties:
+    #     Subscription:
+    #       -
+    #         Endpoint:
+    #           Ref: "OperatorEMail"
+    #         Protocol: "email"
+    WebServerGroup:
+      Type: 'AWS::AutoScaling::AutoScalingGroup'
+      UpdatePolicy:
+        AutoScalingRollingUpdate:
+          MinInstancesInService: "1"
+          MaxBatchSize: "1"
+          PauseTime: "PT2M"
+          WaitOnResourceSignals: "true"
+      Properties:
+        TargetGroupARNs:
+        - !Ref HTTPTargetgroup
+        - !Ref HTTPSTargetgroup
+        VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub '${VpcStack}-SubnetAPublic'
+        - Fn::ImportValue: !Sub '${VpcStack}-SubnetBPublic'
+        LaunchConfigurationName:
+          Ref: "LaunchConfig"
+        MinSize: "1"
+        MaxSize: "3"
+        # NotificationConfiguration:
+        #   TopicARN:
+        #     Ref: "NotificationTopic"
+        #   NotificationTypes:
+        #     - "autoscaling:EC2_INSTANCE_LAUNCH"
+        #     - "autoscaling:EC2_INSTANCE_LAUNCH_ERROR"
+        #     - "autoscaling:EC2_INSTANCE_TERMINATE"
+        #     - "autoscaling:EC2_INSTANCE_TERMINATE_ERROR"
+      CreationPolicy:
+        ResourceSignal:
+          Timeout: "PT20M"
+          Count: "1"
+      UpdatePolicy:
+        AutoScalingRollingUpdate:
+          MinInstancesInService: "1"
+          MaxBatchSize: "1"
+          PauseTime: "PT5M"
+          WaitOnResourceSignals: "true"
+    LaunchConfig:
+      Type: 'AWS::AutoScaling::LaunchConfiguration'
+      Metadata:
+        Comment: Install a simple application
+        AWS::CloudFormation::Init:
+          configSets:
+            default:
+              - config-cfn-hup
+          config-cfn-hup:
+            files:
+              '/home/ubuntu/metadata.txt':
+                content: !Sub |
+                  stack=${AWS::StackId}
+                  region=${AWS::Region}
+                  resource=LaunchConfig
+                owner: ubuntu
+                group: ubuntu
+              '/etc/cfn/cfn-hup.conf':
+                content: !Sub |
+                  [main]
+                  stack=${AWS::StackId}
+                  region=${AWS::Region}
+                  umask=022
+                  interval=5
+                  verbose=true
+                mode: '000400'
+                owner: root
+                group: root
+              '/etc/cfn/hooks.d/cfn-auto-reloader.conf':
+                content: !Sub |
+                  [cfn-auto-reloader-hook]
+                  triggers=post.update
+                  path=Resources.LaunchConfig.Metadata.AWS::CloudFormation::Init
+                  action=/usr/local/bin/cfn-init -v --stack ${AWS::StackId} --resource LaunchConfig --region ${AWS::Region}
+              #systemd service
+              # '/etc/systemd/system/cfn-hup.service':
+              #   content: !Sub |
+              #     [Unit]
+              #     Description=Cloud formation helper daemon
+              #
+              #     [Service]
+              #     ExecStart=/usr/local/init/ubuntu/cfn-hup
+              #     Restart=always
+              #     Type=simple
+              #
+              #     [Install]
+              #     WantedBy=multi-user.target
+
+            # commands:
+            #   enable-cfn-hup:
+            #     command: "systemctl enable cfn-hup.service"
+            #   start-cfn-hup:
+            #     command: "systemctl start cfn-hup.service"
+            # services:
+            #   sysvinit:
+            #     cfn-hup:
+            #       enabled: 'true'
+            #       ensureRunning: 'true'
+            #       files:
+            #         - /etc/cfn/cfn-hup.conf
+            #         - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+            #         - /etc/systemd/system/cfn-hup.service
+      Properties:
+        AssociatePublicIpAddress: 'true'
+        ImageId:
+          Fn::FindInMap:
+            - "AWSRegionArch2AMI"
+            -
+              Ref: "AWS::Region"
+            -
+              Fn::FindInMap:
+                - "AWSInstanceType2Arch"
+                -
+                  Ref: InstanceType
+                - Arch
+        SecurityGroups:
+          - Ref: LoadBalancerSecurityGroup
+          - Ref: SecurityGroupInstances
+        KeyName:
+          Ref: KeyName
+        InstanceType:
+          Ref: InstanceType
+        IamInstanceProfile:
+          Ref: AllowAccessToBigDataProfile
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash -xe
+              export LC_ALL=C
+              apt-get update -y
+
+              apt-get -y install python-pip upstart
+              mkdir /etc/cfn/
+              touch /home/ubuntu/log.log
+              echo "install bootstrap" >> /home/ubuntu/log.log
+              pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+              echo "done install bootstrap" >> /home/ubuntu/log.log
+
+              cp /usr/local/init/ubuntu/cfn-hup /etc/init.d/cfn-hup
+              chmod +x /etc/init.d/cfn-hup
+              update-rc.d cfn-hup defaults
+
+              echo "cfn-init" >> /home/ubuntu/log.log
+              /usr/local/bin/cfn-init -v -c default --stack ${AWS::StackName} --resource LaunchConfig --region ${AWS::Region}
+              echo "done cfn-init" >> /home/ubuntu/log.log
+              mkdir /mnt/s3
+              apt-get -y install s3fs awscli
+              s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,uid=`id -u`,umask=0000,mp_umask=0000,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/`
+              cp /mnt/s3/acs/ACS.war /home/ubuntu/
+              echo "done install s3fs; mounted /mnt/s3" >> /home/ubuntu/log.log
+              cp /mnt/s3/acs/acs-server-setup.tar.gz /home/ubuntu
+              #umount /mnt/s3
+              tar -xzf /home/ubuntu/acs-server-setup.tar.gz -C /home/ubuntu/
+              rm /home/ubuntu/acs-server-setup.tar.gz
+              echo "run acs-server setup script" >> /home/ubuntu/log.log
+              chown -R ubuntu:ubuntu /home/ubuntu/acs-server-setup/
+              /home/ubuntu/acs-server-setup/acs-server-setup-no-reboot.sh
+              echo "done running acs-server setup script" >> /home/ubuntu/log.log
+              service cfn-hup start
+              cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region} >> /home/ubuntu/log.log
+              echo "finished cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region} >> /home/ubuntu/log.log" >> /home/ubuntu/log.log
+
+              echo "done userdata script" >> /home/ubuntu/log.log
+
+
+                # - 'INSTANCE_ID=$(aws opsworks register '
+                # - '         --use-instance-profile '
+                # - '         --infrastructure-class ec2 '
+                # - '         --region '
+                # - Ref: 'AWS::Region'
+                # - '         --stack-id '
+                # - Ref: OpsWorksStackId
+                # - '         --override-hostname $(tr -cd ''a-z'' < /dev/urandom |head -c8) --local 2>&1 |grep -o ''Instance ID: .*'' |cut -d'' '' -f3)'
+                # - |+
+                #
+                # - 'aws opsworks wait instance-registered '
+                # - '         --region '
+                # - Ref: 'AWS::Region'
+                # - '         --instance-id $INSTANCE_ID'
+                # - |+
+                #
+                # - 'aws opsworks assign-instance '
+                # - '         --region '
+                # - Ref: 'AWS::Region'
+                # - '         --instance-id $INSTANCE_ID '
+                # - '         --layer-ids '
+                # - Ref: OpsWorksLayerId
+                # - |+
+    WebServerScaleUpPolicy:
+      Type: "AWS::AutoScaling::ScalingPolicy"
+      Properties:
+        AdjustmentType: "ChangeInCapacity"
+        AutoScalingGroupName:
+          Ref: "WebServerGroup"
+        Cooldown: "60"
+        ScalingAdjustment: "1"
+    WebServerScaleDownPolicy:
+      Type: "AWS::AutoScaling::ScalingPolicy"
+      Properties:
+        AdjustmentType: "ChangeInCapacity"
+        AutoScalingGroupName:
+          Ref: "WebServerGroup"
+        Cooldown: "60"
+        ScalingAdjustment: "-1"
+    CPUAlarmHigh:
+      Type: "AWS::CloudWatch::Alarm"
+      Properties:
+        AlarmDescription: "Scale-up if CPU > 90% for 10 minutes"
+        MetricName: "CPUUtilization"
+        Namespace: "AWS/EC2"
+        Statistic: "Average"
+        Period: "300"
+        EvaluationPeriods: "2"
+        Threshold: "90"
+        AlarmActions:
+          -
+            Ref: "WebServerScaleUpPolicy"
+        Dimensions:
+          -
+            Name: "AutoScalingGroupName"
+            Value:
+              Ref: "WebServerGroup"
+        ComparisonOperator: "GreaterThanThreshold"
+    CPUAlarmLow:
+      Type: "AWS::CloudWatch::Alarm"
+      Properties:
+        AlarmDescription: "Scale-down if CPU < 70% for 10 minutes"
+        MetricName: "CPUUtilization"
+        Namespace: "AWS/EC2"
+        Statistic: "Average"
+        Period: "300"
+        EvaluationPeriods: "2"
+        Threshold: "70"
+        AlarmActions:
+          -
+            Ref: "WebServerScaleDownPolicy"
+        Dimensions:
+          -
+            Name: "AutoScalingGroupName"
+            Value:
+              Ref: "WebServerGroup"
+        ComparisonOperator: "LessThanThreshold"
+    ApplicationLoadBalancer:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        Name: !Ref LoadBalancerNameParameter
+        Subnets:
+        - Fn::ImportValue: !Sub '${VpcStack}-SubnetAPublic'
+        - Fn::ImportValue: !Sub '${VpcStack}-SubnetBPublic'
+        SecurityGroups:
+          - !Ref ALBSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Ref LoadBalancerNameParameter
+    ALBHTTPListener:
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        DefaultActions:
+          - Type: forward
+            TargetGroupArn: !Ref HTTPTargetgroup
+        Port: 80
+        Protocol: HTTP
+        LoadBalancerArn: !Ref ApplicationLoadBalancer
+    ALBHTTPSListener:
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        DefaultActions:
+          - Type: forward
+            TargetGroupArn: !Ref HTTPSTargetgroup
+        Port: 443
+        Protocol: HTTPS
+        LoadBalancerArn: !Ref ApplicationLoadBalancer
+        Certificates:
+          - CertificateArn: !Ref ListenerCertificateParameter
+    HTTPTargetgroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        Port: 8080
+        Protocol: HTTP
+        VpcId:
+          Fn::ImportValue: !Sub '${VpcStack}-VPC'
+        HealthCheckPath: !Ref ALBTargetGroupHealthCheckPathParameter
+        HealthCheckPort: 8443
+        HealthCheckProtocol: HTTPS
+    HTTPSTargetgroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        Port: 8443
+        Protocol: HTTPS
+        VpcId:
+          Fn::ImportValue: !Sub '${VpcStack}-VPC'
+        HealthCheckPath: !Ref ALBTargetGroupHealthCheckPathParameter
+    LoadBalancerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Enable SSH access and HTTP from the load balancer only"
+        SecurityGroupIngress:
+          -
+            IpProtocol: "tcp"
+            FromPort: "80"
+            ToPort: "8080"
+            SourceSecurityGroupId: !Ref ALBSecurityGroup
+          -
+            IpProtocol: "tcp"
+            FromPort: "22"
+            ToPort: "22"
+            SourceSecurityGroupId: !Ref ALBSecurityGroup
+          -
+            IpProtocol: "tcp"
+            FromPort: "443"
+            ToPort: "8443"
+            SourceSecurityGroupId: !Ref ALBSecurityGroup
+        VpcId:
+          Fn::ImportValue: !Sub '${VpcStack}-VPC'
+    ALBSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Enable HTTP from anywhere"
+        SecurityGroupIngress:
+          -
+            IpProtocol: "tcp"
+            FromPort: "80"
+            ToPort: "8080"
+            CidrIp: "0.0.0.0/0"
+          -
+            IpProtocol: "tcp"
+            FromPort: "443"
+            ToPort: "8443"
+            CidrIp: "0.0.0.0/0"
+        VpcId:
+          Fn::ImportValue: !Sub '${VpcStack}-VPC'
+    SecurityGroupInstances:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: allow SSH only
+        SecurityGroupIngress:
+          -
+            IpProtocol: "tcp"
+            FromPort: "22"
+            ToPort: "22"
+            #CidrIp: "195.243.15.130/32"
+            CidrIp: "0.0.0.0/0"
+        VpcId:
+          Fn::ImportValue: !Sub '${VpcStack}-VPC'
+    AllowAccessToBigDataProfile:
+      Type: AWS::IAM::InstanceProfile
+      Properties:
+        Path: "/"
+        Roles:
+        - Ref: AllowAccessToBigDataRole
+    AllowAccessToBigDataPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: AllowAccessToBigDataPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "s3:AbortMultipartUpload"
+              - "s3:GetAccelerateConfiguration"
+              - "s3:Get*"
+              - "s3:List*"
+              - "s3:Put*"
+              - "s3:Replicate*"
+              - "s3:DeleteObject"
+            Resource:
+              - "arn:aws:s3:::acentic-bigdata"
+              - "arn:aws:s3:::acentic-bigdata/*"
+        Roles:
+        - !Ref AllowAccessToBigDataRole
+    AllowAccessToPlaygroundBucket:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: AllowAccessToPlaygroundBucket
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "s3:AbortMultipartUpload"
+              - "s3:GetAccelerateConfiguration"
+              - "s3:Get*"
+              - "s3:List*"
+              - "s3:Put*"
+              - "s3:Replicate*"
+              - "s3:DeleteObject"
+            Resource:
+              - "arn:aws:s3:::acentic-playground-useast1"
+              - "arn:aws:s3:::acentic-playground-useast1/*"
+        Roles:
+        - !Ref AllowAccessToBigDataRole
+    AllowAccessToBigDataRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+            - sts:AssumeRole
+        Path: "/"
+  Outputs:
+    URL:
+      Description: "The URL of the website"
+      Value:
+        Fn::Join:
+          - ""
+          -
+            - "https://"
+            -
+              Fn::GetAtt:
+                - "ApplicationLoadBalancer"
+                - "DNSName"
+    LoadBalancerARN:
+      Description: The ARN of the LoadBalancer
+      Value: !Ref ApplicationLoadBalancer
+    LoadBalancerDNSName:
+      Description: DNS name for the LoadBalancer
+      Value: !GetAtt ApplicationLoadBalancer.DNSName

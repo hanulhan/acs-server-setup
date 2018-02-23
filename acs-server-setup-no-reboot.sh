@@ -109,8 +109,8 @@ case $UPDATE_STATE in
    doLog "==> Finished apt-get upgrade. Reboot now"
    setUpdateState 2
    echo "Mountpoint: $(findmnt -M "$MOUNTPOINT")"
-   reboot
-   ;;
+   #reboot
+   ;&
 
 2) # Installation step 2: Ubuntu installation 1
    doLogUpdateState "UPDATE-STATE 2: Ubunut installation 1"
@@ -223,10 +223,6 @@ case $UPDATE_STATE in
    chown -R root:tomcat7 /var/lib/tomcat7/conf/*.xml
 
    cp $PATH_TO_FILE/Tomcat/lib/*.jar /usr/share/tomcat7/lib/
-    
-   cp $PATH_TO_FILE/Tomcat/elb.html /var/lib/tomcat7/webapps/ROOT/
-   
-   
    
    cp $PATH_TO_FILE/Tomcat/conf/setenv.sh /usr/share/tomcat7/bin
    chmod +x /usr/share/tomcat7/bin/setenv.sh
@@ -236,7 +232,9 @@ case $UPDATE_STATE in
    cp $KEYSTORE_FILE /home/ubuntu/keystore
    chown -R tomcat7:tomcat7 /home/ubuntu/keystore
    
-   #cp $PATH_TO_FILE/Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost/
+   cp $PATH_TO_FILE/Tomcat/virtualHost/*.xml /var/lib/tomcat7/conf/Catalina/localhost/
+   
+ 
 
    touch /etc/authbind/byport/80
    touch /etc/authbind/byport/443
@@ -272,9 +270,17 @@ case $UPDATE_STATE in
          tomcat7
          ubunt" > /etc/cron.deny
    
-   doLog "==> Mount s3 again"
-   sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
-   sleep 2
+   #doLog "==> Mount s3 again"
+   #sudo s3fs acentic-playground-useast1 /mnt/s3 -o use_cache=/tmp,allow_other,iam_role=`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/` 
+   #sleep 2
+   if [ ! -d "/mnt/s3/data/elb" ];
+   then
+      mkdir /mnt/s3/elb
+   fi
+   if [ ! -f "/mnt/s3/data/elb/elb.html" ];
+   then   
+       cp $PATH_TO_FILE/Tomcat/elb.html /mnt/s3/data/elb/
+   fi
    setUpdateState 99
    ;&
 
@@ -282,8 +288,8 @@ case $UPDATE_STATE in
    doLogUpdateState "UPDATE-State 99: Start tomcat"
    
    doLog "==> copy war and start tomcat"
-   cp /home/ubuntu/$WAR_FILE /var/lib/tomcat7/webapps
-   sudo chown tomcat7:tomcat7 /var/lib/tomcat7/webapps/$WAR_FILE
+   #cp /home/ubuntu/$WAR_FILE /var/lib/tomcat7/webapps
+   #sudo chown tomcat7:tomcat7 /var/lib/tomcat7/webapps/$WAR_FILE
    service tomcat7 start
    setUpdateState 100
    ;&
